@@ -10,6 +10,7 @@
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
+    <maven.compiler.parameters>true</maven.compiler.parameters>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <spring-boot.version>3.5.0</spring-boot.version>
     <junit.version>5.10.3</junit.version>
@@ -39,6 +40,12 @@
   <!-- Importing the Spring Boot BOM manages dependency versions only, not plugin versions
        (that would need spring-boot-starter-parent), so plugins are pinned here. -->
   <build>
+    <plugins>
+      <plugin>
+        <groupId>org.jacoco</groupId><artifactId>jacoco-maven-plugin</artifactId><version>0.8.13</version>
+        <executions><execution><goals><goal>prepare-agent</goal></goals></execution></executions>
+      </plugin>
+    </plugins>
     <pluginManagement>
       <plugins>
         <plugin>
