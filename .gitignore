@@ -8,3 +8,6 @@ target/
 *.env
 !*.env.example
 .DS_Store
+.local-reference/
+.test-cache/
+.test-run/
