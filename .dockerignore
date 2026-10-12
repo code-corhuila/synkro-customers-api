@@ -4,4 +4,7 @@
 .idea/
 *.iml
 .env
+.local-reference
+.test-cache
+.test-run
 *.env

@@ -6,6 +6,15 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.*;
 
 class CustomerTest {
+    @Test void businessAndStorageFailuresKeepSafeDistinctCatalogs() {
+        var conflict=new CustomerFailure("BUSINESS_RULE_VIOLATION","identityDocument","Identity document already belongs to a customer");
+        assertThat(conflict.code()).isEqualTo("BUSINESS_RULE_VIOLATION");
+        assertThat(conflict.field()).isEqualTo("identityDocument");
+        var storage=CustomerFailure.storage();
+        assertThat(storage.code()).isEqualTo("INTERNAL_ERROR");
+        assertThat(storage.field()).isNull();
+        assertThat(storage.getMessage()).doesNotContain("SELECT","password","jdbc:");
+    }
     @Test void replacementAndDeactivationPreserveIdentity() {
         var id = UUID.randomUUID();
         var date = Instant.parse("2026-01-01T00:00:00Z");
