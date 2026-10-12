@@ -1,0 +1,20 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 5s
+    keep-alive-timeout: 60s
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
+logging:
+  level:
+    com.zaxxer.hikari: ERROR
+  structured:
+    format:
+      console: logstash

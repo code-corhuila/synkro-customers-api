@@ -1,0 +1,41 @@
+[flyway]
+environment = "default"
+locations = ["filesystem:01_ddl", "filesystem:02_dml", "filesystem:03_dcl", "filesystem:04_tcl"]
+validateMigrationNaming = true
+validateOnMigrate = true
+cleanDisabled = true
+baselineOnMigrate = false
+outOfOrder = false
+table = "flyway_schema_history"
+defaultSchema = "customers_schema"
+
+[environments.default]
+connectRetries = 3
+connectRetriesInterval = 2
+schemas = ["customers_schema"]
+# pgJDBC seconds; retries alone never limit a blocked connection or read.
+jdbcProperties.connectTimeout = "5"
+jdbcProperties.loginTimeout = "10"
+jdbcProperties.socketTimeout = "60"
+# Runs before history creation, including on the second application.
+initSql = """
+DO $preflight$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'customers_app' AND rolcanlogin) THEN
+    RAISE EXCEPTION 'customers_app must be provisioned by infrastructure';
+  END IF;
+  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'customers_app'
+             AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)) THEN
+    RAISE EXCEPTION 'customers_app has unsafe instance privileges';
+  END IF;
+  IF pg_catalog.to_regclass('public.flyway_schema_history') IS NOT NULL THEN
+    RAISE EXCEPTION 'Legacy public history requires manual reconciliation';
+  END IF;
+  IF EXISTS (SELECT FROM pg_catalog.pg_roles
+             WHERE rolname IN ('customers_reader', 'customers_writer')
+             AND (rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)) THEN
+    RAISE EXCEPTION 'Unsafe existing Customers role; reconcile role ownership and privileges';
+  END IF;
+END
+$preflight$;
+"""
