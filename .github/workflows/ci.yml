@@ -41,6 +41,8 @@ jobs:
           node-version: '22'
       - name: Real PostgreSQL lifecycle, RS256, runtime and coverage gates
         run: node tests/verify.mjs
+      - name: Owning image and internal deployment configuration
+        run: node tests/check-deployment.mjs
       - name: Architecture check — customers-core has no Spring dependency
         # dependency:tree prints at INFO level, so `-q` would silence it and the grep
         # would always pass; the tree is written to a file instead.
