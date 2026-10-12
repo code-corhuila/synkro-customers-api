@@ -5,11 +5,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class CustomersHttpTest {
+    @DynamicPropertySource static void fixture(DynamicPropertyRegistry p) {
+        p.add("SPRING_DATASOURCE_URL",()->Objects.requireNonNull(System.getenv("TEST_DATABASE_URL"),"Mandatory disposable PostgreSQL fixture missing"));
+        p.add("SPRING_DATASOURCE_PASSWORD",()->System.getenv("TEST_DATABASE_PASSWORD"));
+    }
 
     @LocalServerPort
     int port;
