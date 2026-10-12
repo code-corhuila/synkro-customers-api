@@ -4,7 +4,7 @@ COPY pom.xml .
 COPY customers-core/pom.xml customers-core/pom.xml
 COPY customers-adapters/pom.xml customers-adapters/pom.xml
 COPY customers-app/pom.xml customers-app/pom.xml
-RUN mvn -B -q -pl customers-core,customers-adapters,customers-app dependency:go-offline || true
+RUN mvn -B -q -pl customers-core,customers-adapters,customers-app dependency:go-offline
 COPY . .
 RUN mvn -B -q -pl customers-app -am package -DskipTests
 
