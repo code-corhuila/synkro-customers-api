@@ -1,9 +1,80 @@
-# HU-CLI-03 — prepared review references (no PR created)
+# HU-CLI-03 — merged review record
 
-Approved delivery: feat/customers-lifecycle-and-persistence remains at
-4bffdc95459879dbaef2b58e7b35d94702ec958e with its entire published history.
-Develop inspected before preparation: 5dddfc84f885db8932e4e3a567ed83c83612cfe9.
-The four candidate branches form a stack; no permanent branch was modified.
+Verified integrated develop: c9bb7195437cbaa98c0478a45a892275c30afc3a.
+GitHub confirms the four PRs below are MERGED into develop in the agreed sequence,
+with normal merges preserving each candidate head as an ancestor. The actual PR
+records supersede the pre-merge proposals retained below; do not open them again.
+
+| Package / canonical branch | Merged PR | Candidate head | Normal merge SHA |
+|---|---|---|---|
+| Domain: feat/customers-domain-and-use-cases | [#3](https://github.com/code-corhuila/synkro-customers-api/pull/3) | 5430e00636753855dadd710d782717dc6944c1b2 | 405a131a39c6d14a6a9bcd50c956aaa137cd9bac |
+| Persistence: feat/customers-persistence | [#4](https://github.com/code-corhuila/synkro-customers-api/pull/4) | 1459fa6461267a78e1d68096959ad47fd0bf9266 | 9234fae563adc6a895228420f38892165205a8bc |
+| HTTP/security: feat/customers-http-security | [#5](https://github.com/code-corhuila/synkro-customers-api/pull/5) | 9d52cb7e66a7c8578a9196c39da50cddfd94b7cc | 6f47e4378c196253215300610cf23152628af9a7 |
+| Delivery: chore/customers-delivery | [#6](https://github.com/code-corhuila/synkro-customers-api/pull/6) | f59e365d073f407801d6e7797189cba363163775 | c9bb7195437cbaa98c0478a45a892275c30afc3a |
+
+## Integrated evidence and remaining documentary work
+
+The actual PR CI runs passed: [#3 CI](https://github.com/code-corhuila/synkro-customers-api/actions/runs/38323094671),
+[#4 CI](https://github.com/code-corhuila/synkro-customers-api/actions/runs/38323379828),
+[#5 CI](https://github.com/code-corhuila/synkro-customers-api/actions/runs/38323532138),
+and [#6 CI](https://github.com/code-corhuila/synkro-customers-api/actions/runs/38323745611).
+These are distinct from the historical candidate push runs recorded below.
+Post-merge develop [CI 38324011128](https://github.com/code-corhuila/synkro-customers-api/actions/runs/38324011128)
+is SUCCESS on c9bb7195437cbaa98c0478a45a892275c30afc3a: 22 tests, zero
+failures/errors/skips, 97.01% global coverage, architecture, real PostgreSQL,
+runtime restart/degradation, owning image, internal Compose and cleanup gates PASS.
+This baseline result is not CI for a later documentation commit.
+
+Review of the two pending branches found:
+
+- chore/customers-review-reference-correction @ 250ceae73db41c0a60d08450612b188c2aa5d888:
+  canonical names, normal-merge procedure and evidence/status clarification were
+  useful. They are consolidated here with the actual merged PRs. The optional
+  push-trigger patch is not imported/applied: no current need exists, all four PRs
+  already ran through the existing pull_request/develop trigger.
+- feat/customers-lifecycle-and-persistence @ 4bffdc95459879dbaef2b58e7b35d94702ec958e:
+  no unique useful documentation/evidence is missing from develop. Design, README,
+  handoffs and approved issue correction match; acceptance/evidence only differ by
+  develop's additional historical-scope notes. TDD and joint participant SHAs/effects
+  remain in evidence.md, including the actual joint Customers SHA
+  f6184542b82fd6de685a8cf78346bd2020889988. It is not relabelled as a joint run on
+  integrated develop. Do not merge the original implementation or restore its older
+  test/CI files over the additional integrated coverage and controls.
+
+The original approved head 4bffdc95459879dbaef2b58e7b35d94702ec958e also has
+[historical SUCCESS CI 38314165000](https://github.com/code-corhuila/synkro-customers-api/actions/runs/38314165000),
+verified at that exact SHA. This source evidence is separate from integrated develop
+CI and from any future documentation PR result.
+
+The original approved docs revision, CLI-API-16/17 issue correction, HU-VEN-12/#246
+correction and coordinated WKF-16/infrastructure handoffs remain documented in
+design.md, issue-247-correction.md and handoff.md. Their owner publication is not
+performed here; this documentary consolidation does not close the HU or platform.
+
+## Retirement conditions for the two pending branches
+
+After this minimal documentation PR is approved/merged into develop and its PR CI
+passes, chore/customers-review-reference-correction can be retired without losing
+necessary content. Its optional patch is intentionally unnecessary, not pending
+implementation. No workflow change is needed for this documentation PR either:
+pull_request targeting develop already runs the integrated controls.
+
+The original feature branch is not a develop ancestor: its source work was reapplied
+with traceability through the four merged candidates. Its original joint commit
+f6184542b82fd6de685a8cf78346bd2020889988 and approved head currently remain reachable
+only through that feature branch's local/remote refs. Before retiring both refs,
+preserve/verify an immutable archival tag/ref or a durable verified Git bundle of
+4bffdc95459879dbaef2b58e7b35d94702ec958e and its history. This retains the exact
+source of the historical joint/CI evidence, not merely equivalent integrated files.
+Then the original branch is no longer necessary as an active implementation branch.
+No archive ref, branch deletion, issue edit, PR creation or merge is performed here.
+
+## Historical preparation record (superseded operational instructions)
+
+The sections below retain the original scope, counts, descriptions, attribution and
+failed preparation attempts for audit. Their future-tense review/merge instructions
+are historical only; the sequence has completed through actual PRs #3 -> #4 -> #5 -> #6.
+The old codex/review-customers-* names are aliases, not the merged branch names.
 
 ## Boundaries and controls
 
@@ -36,7 +107,7 @@ Domain/application coverage is 100% on every boundary. Infrastructure is 94.12%,
 
 ## PR 1 — ready description
 
-Branch: codex/review-customers-01-core
+Branch: feat/customers-domain-and-use-cases (merged in PR #3)
 SHA: 5430e00636753855dadd710d782717dc6944c1b2
 Base: develop (5dddfc84f885db8932e4e3a567ed83c83612cfe9).
 Title: feat(customers): define domain ports and lifecycle use cases
@@ -59,7 +130,7 @@ plus a forward verification commit with source-delivery references; AsolanoT ret
 
 ## PR 2 — ready description
 
-Branch: codex/review-customers-02-persistence
+Branch: feat/customers-persistence (merged in PR #4)
 SHA: 1459fa6461267a78e1d68096959ad47fd0bf9266
 Initial stacked base: codex/review-customers-01-core at
 5430e00636753855dadd710d782717dc6944c1b2; target develop after PR 1 is incorporated.
@@ -87,7 +158,7 @@ and 80d5f620d9cc9797e6853cd67731867ef9eb4d60; original author AsolanoT retained.
 
 ## PR 3 — ready description
 
-Branch: codex/review-customers-03-http-security
+Branch: feat/customers-http-security (merged in PR #5)
 SHA: 9d52cb7e66a7c8578a9196c39da50cddfd94b7cc
 Initial stacked base: codex/review-customers-02-persistence at
 1459fa6461267a78e1d68096959ad47fd0bf9266; target develop after PR 2 is incorporated.
@@ -113,9 +184,8 @@ Attribution: forward commit references ad37da521f2b07c2c1a59c58afaac4bc3481b168,
 
 ## PR 4 — ready description
 
-Branch: codex/review-customers-04-delivery
-SHA: the published final preparation SHA is recorded in the delivery report;
-this document belongs to that commit and does not embed its own hash.
+Branch: chore/customers-delivery (merged in PR #6)
+SHA: f59e365d073f407801d6e7797189cba363163775
 Initial stacked base: codex/review-customers-03-http-security at
 9d52cb7e66a7c8578a9196c39da50cddfd94b7cc; target develop after PR 3 is incorporated.
 Title: chore(customers): complete deployment and review evidence
