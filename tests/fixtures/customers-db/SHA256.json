@@ -1,0 +1,13 @@
+{
+  "01_ddl/01_schemas/V001__create_customers_schema.sql": "62e57fa0b0db5c45da06c47471ce1feef9678153dfaf37edf9d313351b1f2fec",
+  "01_ddl/03_tables/V002__create_customer.sql": "323f6e663cbfd5bb4dc173b96d145e912b14b3355a6ec080dcaf2b748ef3cd73",
+  "01_ddl/03_tables/V003__create_idempotency_key.sql": "1275df50eccb88f5454668a5c347814528bb8c2ecab48ac8f60a5e63cbb81c5b",
+  "01_ddl/04_alter/V004__add_foreign_keys.sql": "286967072745c2cf6bafda7fc8c895dee00678b944ddc961b2f028b2060e8b59",
+  "01_ddl/10_indexes/V005__create_indexes.sql": "0f83cfb5bae0fc2d33909f1a4edb29cdc8a511480ec3ad5dc60392e6645ee11d",
+  "02_dml/README.md": "5dc7e21dc8af2fce31787dfe90d4d504eafb6106437de6a3f3e9c25e8ab62045",
+  "03_dcl/00_roles/V006__create_roles.sql": "c7c96933af45e2045beaff067fb049b9c9e9d2ca981a2bb7dc2a7f5382220758",
+  "03_dcl/01_grants/V007__grant_permissions.sql": "c071e1f1057bfa01d9c4c3f4e7b5c1a81e43457e07963ac8f4ea66bf37889b35",
+  "04_tcl/README.md": "57b5119e23b7d232e28a3df3e629f17835e265de4063db90d5e52b8dbfa9f2be",
+  "flyway.toml": "a52915aa57cf084c3492a7e5c8bedafd40e6d62aac4f1e04af35e23d7867066c",
+  "scripts/migrate.sh": "c3667cc20cc5af28018514bc8b87dc86174edff4a28e0fb8f08134b0b5143055"
+}
