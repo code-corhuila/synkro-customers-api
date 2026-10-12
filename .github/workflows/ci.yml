@@ -39,8 +39,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Core reactor, original HTTP skeleton and coverage gates
-        run: node tests/verify-core.mjs
+      - name: Real PostgreSQL persistence, reactor and coverage gates
+        run: node tests/verify.mjs
       - name: Architecture check — customers-core has no Spring dependency
         # dependency:tree prints at INFO level, so `-q` would silence it and the grep
         # would always pass; the tree is written to a file instead.
