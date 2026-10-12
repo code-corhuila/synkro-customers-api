@@ -36,8 +36,7 @@ try{
     for(const name of ['customers-core','customers-adapters','customers-app'])docker(['cp',`${build}:/src/${name}/target`,resolve(root,name)],{quiet:true,allowFailure:true});
     if(r.status!==0)throw new Error('Maven verification failed');
     await import('./check-quality.mjs');
-    // This review has JDBC/composition but still the approved baseline HTTP skeleton.
-    // All reactor tests run; executable lifecycle probes are introduced with HTTP.
+    if(!process.argv.some(arg=>arg.startsWith('-Dtest=')))await (await import('./runtime.mjs')).verifyRuntime({root,dir,prefix,network,db,password,docker});
     console.log('Disposable PostgreSQL, approved runner, build and tests: PASS');
 }catch(e){failed=true;console.error(e.message);}
 finally{
