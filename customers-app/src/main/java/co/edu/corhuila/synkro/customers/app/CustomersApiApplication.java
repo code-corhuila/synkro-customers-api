@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServic
 
 // No username/password login exists in this service's security chain, so Boot's
 // default in-memory user (and its generated password) is excluded.
-@SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
+@SpringBootApplication(scanBasePackages = "co.edu.corhuila.synkro.customers", exclude = UserDetailsServiceAutoConfiguration.class)
 public class CustomersApiApplication {
     public static void main(String[] args) {
         SpringApplication.run(CustomersApiApplication.class, args);
