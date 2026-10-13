@@ -1,0 +1,13 @@
+target/
+*.class
+*.jar
+.idea/
+*.iml
+.mvn/wrapper/maven-wrapper.jar
+.env
+*.env
+!*.env.example
+.DS_Store
+.local-reference/
+.test-cache/
+.test-run/
