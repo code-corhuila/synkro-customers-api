@@ -1,0 +1,2 @@
+CREATE SCHEMA IF NOT EXISTS customers_schema;
+REVOKE ALL ON SCHEMA customers_schema FROM PUBLIC;
