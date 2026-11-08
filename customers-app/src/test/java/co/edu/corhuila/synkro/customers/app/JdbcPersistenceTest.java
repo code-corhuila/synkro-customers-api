@@ -16,17 +16,17 @@ class JdbcPersistenceTest {
     @BeforeEach void connect(){var c=new CustomersComposition();datasource=c.datasource(url,"customers_app",System.getenv("TEST_DATABASE_PASSWORD"),"");repository=c.repository(datasource);}
     @AfterEach void close(){datasource.close();}
     String unique(){return UUID.randomUUID().toString().replace("-","").substring(0,25);}
-    CustomerFields fields(String doc){return new CustomerFields("Synthetic JDBC",doc,null,null,null);}
+    CustomerFields fields(String doc){return new CustomerFields("Synthetic JDBC",doc,"jdbc@example.test","3001234567","Calle 1");}
     void admin(String query)throws Exception{try(var c=DriverManager.getConnection(url,"postgres",System.getenv("TEST_ADMIN_PASSWORD"));var s=c.createStatement()){s.execute(query);}}
     long count(String table,String column,String value)throws Exception{try(var c=datasource.getConnection();var s=c.prepareStatement("SELECT count(*) FROM customers_schema."+table+" WHERE "+column+"=?")){s.setString(1,value);try(var r=s.executeQuery()){r.next();return r.getLong(1);}}}
     @Test void lifecycleExactSearchReplacementAndSoftDeletion()throws Exception{
         String doc=unique(),key=unique();var first=repository.createOnce(key,fields(doc));var customer=first.customer();
-        assertThat(first.created()).isTrue();assertThat(customer.active()).isTrue();assertThat(customer.fields().email()).isNull();assertThat(repository.healthy()).isTrue();
+        assertThat(first.created()).isTrue();assertThat(customer.active()).isTrue();assertThat(customer.fields().email()).isEqualTo("jdbc@example.test");assertThat(repository.healthy()).isTrue();
         var replay=repository.createOnce(key,fields(unique()));assertThat(replay.created()).isFalse();assertThat(replay.customer()).isEqualTo(customer);
         assertThat(repository.find(customer.customerId())).contains(customer);assertThat(repository.find(UUID.randomUUID())).isEmpty();
-        var replacement=repository.replace(customer.customerId(),new CustomerFields("Updated",doc,"synthetic@example.test","123","Street"));
+        var replacement=repository.replace(customer.customerId(),new CustomerFields("Updated",doc,"synthetic@example.test","3109876543","Street"));
         assertThat(replacement.customerId()).isEqualTo(customer.customerId());assertThat(replacement.registrationDate()).isEqualTo(customer.registrationDate());
-        assertThat(repository.replace(customer.customerId(),fields(doc)).fields().email()).isNull();
+        assertThat(repository.replace(customer.customerId(),fields(doc)).fields().email()).isEqualTo("jdbc@example.test");
         assertThat(repository.list(new Query(doc,null,1,20)).total()).isEqualTo(1);assertThat(repository.list(new Query(doc.substring(0,5),null,1,20)).total()).isZero();
         var inactive=repository.deactivate(customer.customerId());assertThat(inactive.active()).isFalse();assertThat(repository.deactivate(customer.customerId())).isEqualTo(inactive);
         assertThat(repository.list(new Query(doc,false,1,20)).data()).containsExactly(inactive);assertThat(repository.list(new Query(doc,true,1,20)).data()).isEmpty();
@@ -43,6 +43,27 @@ class JdbcPersistenceTest {
         }finally{pool.shutdownNow();}
     }
     String race(String doc){try{repository.createOnce(unique(),fields(doc));return "created";}catch(CustomerFailure failure){return failure.code();}}
+    @Test void activationIsAtomicIdempotentAndAuditedOnce()throws Exception{
+        var created=repository.createOnce(unique(),fields(unique())).customer();UUID operator=UUID.randomUUID();
+        assertThat(repository.activate(created.customerId(),operator,"corr-1")).isEqualTo(created);   // already active: no change, no audit
+        assertThat(audits(created.customerId())).isZero();
+        var inactive=repository.deactivate(created.customerId());assertThat(inactive.active()).isFalse();
+        var pool=Executors.newFixedThreadPool(6);
+        try{var jobs=new ArrayList<Callable<Customer>>();for(int i=0;i<6;i++)jobs.add(()->repository.activate(created.customerId(),operator,"corr-2"));
+            for(var f:pool.invokeAll(jobs)){var c=f.get();assertThat(c.active()).isTrue();assertThat(c.customerId()).isEqualTo(created.customerId());}
+        }finally{pool.shutdownNow();}
+        assertThat(audits(created.customerId())).isEqualTo(1);
+        assertThatThrownBy(()->repository.activate(UUID.randomUUID(),operator,null)).isInstanceOf(CustomerFailure.class).extracting("code").isEqualTo("NOT_FOUND");
+    }
+    long audits(UUID id)throws Exception{try(var c=datasource.getConnection();var s=c.prepareStatement("SELECT count(*) FROM customers_schema.customer_audit WHERE customer_id=?")){s.setObject(1,id);try(var r=s.executeQuery()){r.next();return r.getLong(1);}}}
+    @Test void searchIsBoundedAccentInsensitiveAndPrioritisesTheExactDocument()throws Exception{
+        String tag="zq"+unique().substring(0,8);
+        for(int i=0;i<8;i++)repository.createOnce(unique(),new CustomerFields("María "+tag+" "+i,unique(),"s"+i+"@example.test","3001234567","Calle 1"));
+        var result=repository.search(co.edu.corhuila.synkro.customers.application.port.in.CustomerUseCases.Search.of("maria "+tag,null));
+        assertThat(result.data()).hasSize(co.edu.corhuila.synkro.customers.application.port.in.CustomerUseCases.SearchResult.LIMIT);
+        assertThat(result.hasMore()).isTrue();
+        assertThat(repository.search(co.edu.corhuila.synkro.customers.application.port.in.CustomerUseCases.Search.of("MARÍA "+tag,null)).data()).extracting(s->s.customerId()).containsExactlyElementsOf(result.data().stream().map(s->s.customerId()).toList());   // stable order
+    }
     @Test void failedKeyInsertionRollsBackBothRows()throws Exception{
         String key=unique(),doc=unique(),constraint="review_"+unique();
         admin("ALTER TABLE customers_schema.idempotency_key ADD CONSTRAINT "+constraint+" CHECK (key <> '"+key+"')");

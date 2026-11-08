@@ -63,6 +63,41 @@ public final class JdbcCustomerRepository implements CustomerRepository {
         return safe(() -> transactions.execute(status -> one("UPDATE "+TABLE+" SET active=false WHERE customer_id=? AND active=true RETURNING "+COLUMNS,id)
                 .or(() -> one("SELECT "+COLUMNS+" FROM "+TABLE+" WHERE customer_id=?",id)).orElseThrow(CustomerFailure::missing)));
     }
+    // HU-CLI-05. The text is folded by customers_schema.fold_search_text (lower case, no diacritics); wildcards are never
+    // interpreted because matching uses starts_with/strpos, and every value is a bound parameter.
+    private static final String SEARCH = "WITH q AS (SELECT customers_schema.fold_search_text(?) AS phrase, "
+            + "string_to_array(customers_schema.fold_search_text(?),' ') AS tokens) "
+            + "SELECT c.customer_id,c.name,c.identity_document,c.active,m.rank FROM " + TABLE + " c CROSS JOIN q "
+            + "CROSS JOIN LATERAL (SELECT CASE "
+            + "WHEN customers_schema.fold_search_text(c.identity_document)=q.phrase THEN 0 "
+            + "WHEN starts_with(customers_schema.fold_search_text(c.identity_document),q.phrase) THEN 1 "
+            + "WHEN NOT EXISTS (SELECT 1 FROM unnest(q.tokens) t WHERE strpos(customers_schema.fold_search_text(c.name),t)=0) THEN 2 END AS rank) m "
+            + "WHERE c.active=? AND m.rank IS NOT NULL "
+            + "ORDER BY m.rank,customers_schema.fold_search_text(c.name),c.customer_id LIMIT " + (SearchResult.LIMIT + 1);
+    public SearchResult search(Search search) {
+        return safe(() -> {
+            var rows = jdbc.query(SEARCH, (r, n) -> new Suggestion(r.getObject("customer_id", UUID.class), r.getString("name"),
+                    r.getString("identity_document"), r.getBoolean("active"), Suggestion.Match.values()[r.getInt("rank")]),
+                    search.text(), String.join(" ", search.tokens()), search.status() == Search.Status.ACTIVE);
+            return new SearchResult(rows.stream().limit(SearchResult.LIMIT).toList(), rows.size() > SearchResult.LIMIT);
+        });
+    }
+    /**
+     * The conditional UPDATE is the single atomic transition: concurrent calls serialise on the row lock and only the
+     * one that really flips the row inserts the audit record, in the same transaction (a failed audit insert rolls the
+     * activation back). Everyone else re-reads the already active row, so a retry is safe and writes nothing.
+     */
+    public Customer activate(UUID id, UUID operator, String correlationId) {
+        return safe(() -> transactions.execute(status -> {
+            var flipped = one("UPDATE " + TABLE + " SET active=true WHERE customer_id=? AND active=false RETURNING " + COLUMNS, id);
+            if (flipped.isPresent()) {
+                jdbc.update("INSERT INTO customers_schema.customer_audit(customer_id,action,actor_id,correlation_id) VALUES (?,'REACTIVATED',?,?)",
+                        id, operator, correlationId);
+                return flipped.get();
+            }
+            return one("SELECT " + COLUMNS + " FROM " + TABLE + " WHERE customer_id=?", id).orElseThrow(CustomerFailure::missing);
+        }));
+    }
     public boolean healthy() {
         try { jdbc.queryForObject("SELECT count(*) FROM "+TABLE+" WHERE false",Long.class); return true; }
         catch (DataAccessException e) { return false; }

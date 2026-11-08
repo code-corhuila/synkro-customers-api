@@ -11,4 +11,8 @@ public record Caller(String subject, Set<String> roles, Set<String> permissions)
         boolean workflow = readById && subject.equals("synkro-workflow") && roles.equals(Set.of("SERVICE")) && permissions.contains("customers:read");
         if (!human && !workflow) throw new CustomerFailure("FORBIDDEN", null, "Operation is not authorized");
     }
+    /** Human ADMIN only (customer reactivation). SALESPERSON, INVENTORY and service tokens are denied. */
+    public void authorizeAdmin() {
+        if (roles.contains("SERVICE") || !roles.equals(Set.of("ADMIN"))) throw CustomerFailure.forbidden();
+    }
 }
