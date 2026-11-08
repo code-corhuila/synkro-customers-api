@@ -13,5 +13,12 @@ public interface CustomerRepository {
     /** Atomic replacement only while active; preserves identity/date. */
     Customer replace(UUID id, CustomerFields fields);
     Customer deactivate(UUID id);
+    /** At most {@link SearchResult#LIMIT} suggestions of the requested status, strongest match first. */
+    SearchResult search(Search search);
+    /**
+     * Atomic inactive-to-active transition that records the operator in the same transaction. An already active
+     * customer is returned unchanged without a new audit record; an unknown id fails with NOT_FOUND.
+     */
+    Customer activate(UUID id, UUID operator, String correlationId);
     boolean healthy();
 }

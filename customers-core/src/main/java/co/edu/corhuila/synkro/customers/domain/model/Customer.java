@@ -13,4 +13,6 @@ public record Customer(UUID customerId, CustomerFields fields, Instant registrat
         return new Customer(customerId, replacement, registrationDate, true);
     }
     public Customer deactivate() { return active ? new Customer(customerId, fields, registrationDate, false) : this; }
+    /** Reactivation keeps identity, document and registration date; an already active customer is returned unchanged. */
+    public Customer activate() { return active ? this : new Customer(customerId, fields, registrationDate, true); }
 }
