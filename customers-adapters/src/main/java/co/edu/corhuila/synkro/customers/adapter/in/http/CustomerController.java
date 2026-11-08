@@ -42,10 +42,10 @@ public class CustomerController {
     }
     /** The query is personal data, so it travels in the body; nothing about it is logged by this service. */
     @PostMapping("/search") public Map<String,Object> search(@AuthenticationPrincipal Jwt jwt,@RequestBody Map<String,Object> body) {
-        for(String key:body.keySet())if(!Set.of("query","status").contains(key))throw new CustomerFailure("VALIDATION_ERROR",key,"unknown_property");
-        if(!(body.get("query") instanceof String query))throw new CustomerFailure("VALIDATION_ERROR","query","invalid_length");
+        for(String key:body.keySet())if(!Set.of("query","status").contains(key))throw CustomerFailure.invalid(key,"unknown_property");
+        if(!(body.get("query") instanceof String query))throw CustomerFailure.invalid("query","invalid_length");
         Object status=body.get("status");
-        if(body.containsKey("status")&&!(status instanceof String))throw new CustomerFailure("VALIDATION_ERROR","status","invalid_value");
+        if(body.containsKey("status")&&!(status instanceof String))throw CustomerFailure.invalid("status","invalid_value");
         var result=customers.search(SecurityConfiguration.caller(jwt),CustomerUseCases.Search.of(query,(String)status));
         return Map.of("data",result.data().stream().map(Suggestion::from).toList(),
                 "meta",Map.of("limit",CustomerUseCases.SearchResult.LIMIT,"hasMore",result.hasMore()));

@@ -14,7 +14,7 @@ import java.util.*;
 public class ErrorHandler {
     @ExceptionHandler(CustomerFailure.class) public ResponseEntity<?> domain(CustomerFailure e,HttpServletRequest r) {
         int status=switch(e.code()){case "VALIDATION_ERROR" -> 400;case "FORBIDDEN" -> 403;case "NOT_FOUND" -> 404;case "BUSINESS_RULE_VIOLATION" -> 422;default -> 500;};
-        return ResponseEntity.status(status).body(HttpErrors.body(r,e.code(),"VALIDATION_ERROR".equals(e.code())&&!e.issues().isEmpty()?"Invalid request fields":e.getMessage(),e.issues().stream().map(i -> Map.of("field",i.field(),"message",i.message())).toList()));
+        return ResponseEntity.status(status).body(HttpErrors.body(r,e.code(),e.getMessage(),e.issues().stream().map(i -> Map.of("field",i.field(),"message",i.message())).toList()));
     }
     @ExceptionHandler(MethodArgumentNotValidException.class) public ResponseEntity<?> validation(MethodArgumentNotValidException e,HttpServletRequest r) {
         var details=e.getBindingResult().getFieldErrors().stream().map(f -> Map.of("field",f.getField(),"message","Invalid field value")).toList();
