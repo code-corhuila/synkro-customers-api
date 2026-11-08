@@ -6,6 +6,8 @@ import co.edu.corhuila.synkro.customers.domain.model.*;
 import org.postgresql.util.PSQLException;
 import org.springframework.dao.*;
 import org.springframework.jdbc.core.*;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.util.*;
 import java.util.function.Supplier;
@@ -17,8 +19,9 @@ public final class JdbcCustomerRepository implements CustomerRepository {
             new CustomerFields(r.getString("name"),r.getString("identity_document"),r.getString("email"),r.getString("phone"),r.getString("address")),
             r.getTimestamp("registration_date").toInstant(),r.getBoolean("active"));
     private final JdbcTemplate jdbc;
+    private final NamedParameterJdbcTemplate named;
     private final TransactionTemplate transactions;
-    public JdbcCustomerRepository(JdbcTemplate jdbc, TransactionTemplate transactions) { this.jdbc=jdbc; this.transactions=transactions; }
+    public JdbcCustomerRepository(JdbcTemplate jdbc, TransactionTemplate transactions) { this.jdbc=jdbc; this.named=new NamedParameterJdbcTemplate(jdbc); this.transactions=transactions; }
     private Optional<Customer> one(String sql,Object... args) { return jdbc.query(sql,ROW,args).stream().findFirst(); }
     private Optional<Customer> byKey(String key) {
         return one("SELECT c.* FROM "+TABLE+" c JOIN customers_schema.idempotency_key k USING(customer_id) WHERE k.key=?",key);
@@ -63,22 +66,28 @@ public final class JdbcCustomerRepository implements CustomerRepository {
         return safe(() -> transactions.execute(status -> one("UPDATE "+TABLE+" SET active=false WHERE customer_id=? AND active=true RETURNING "+COLUMNS,id)
                 .or(() -> one("SELECT "+COLUMNS+" FROM "+TABLE+" WHERE customer_id=?",id)).orElseThrow(CustomerFailure::missing)));
     }
-    // HU-CLI-05. The text is folded by customers_schema.fold_search_text (lower case, no diacritics); wildcards are never
-    // interpreted because matching uses starts_with/strpos, and every value is a bound parameter.
-    private static final String SEARCH = "WITH q AS (SELECT customers_schema.fold_search_text(?) AS phrase, "
-            + "string_to_array(customers_schema.fold_search_text(?),' ') AS tokens) "
-            + "SELECT c.customer_id,c.name,c.identity_document,c.active,m.rank FROM " + TABLE + " c CROSS JOIN q "
-            + "CROSS JOIN LATERAL (SELECT CASE "
-            + "WHEN customers_schema.fold_search_text(c.identity_document)=q.phrase THEN 0 "
-            + "WHEN starts_with(customers_schema.fold_search_text(c.identity_document),q.phrase) THEN 1 "
-            + "WHEN NOT EXISTS (SELECT 1 FROM unnest(q.tokens) t WHERE strpos(customers_schema.fold_search_text(c.name),t)=0) THEN 2 END AS rank) m "
-            + "WHERE c.active=? AND m.rank IS NOT NULL "
-            + "ORDER BY m.rank,customers_schema.fold_search_text(c.name),c.customer_id LIMIT " + (SearchResult.LIMIT + 1);
+    // HU-CLI-05. The text is folded by customers_schema.fold_search_text (lower case, no diacritics) and compared with the
+    // stored generated columns name_search / document_search (V012), so no function runs per row and the document lookups use
+    // idx_customer_document_search (V013). Wildcards are never interpreted: equality, range and strpos only, every value is a
+    // bound parameter. Rank 0 = exact document, 1 = document prefix, 2 = every name token; each rank keeps its first six rows in
+    // the stable order (folded name, id), and the union keeps the first six overall (LIMIT + 1 tells whether there are more).
+    private static final String LIMIT = Integer.toString(SearchResult.LIMIT + 1);
+    private static final String FOLDED = "customers_schema.fold_search_text(:text)", CEILING = "chr(1114111)";
+    private static final String SEARCH_BRANCH = "SELECT c.customer_id,c.name,c.identity_document,c.active,c.name_search,%d AS rank FROM " + TABLE + " c %s"
+            + " WHERE c.active=:active AND %s ORDER BY c.name_search,c.customer_id LIMIT " + LIMIT;
+    private static final String SEARCH = "WITH q AS (SELECT " + FOLDED + " AS phrase, string_to_array(customers_schema.fold_search_text(:tokens),' ') AS tokens) "
+            + "SELECT customer_id,name,identity_document,active,rank FROM ("
+            + "(" + String.format(SEARCH_BRANCH, 0, "", "c.document_search=" + FOLDED) + ") UNION ALL "
+            + "(" + String.format(SEARCH_BRANCH, 1, "", "c.document_search>" + FOLDED + " AND c.document_search<" + FOLDED + "||" + CEILING) + ") UNION ALL "
+            + "(" + String.format(SEARCH_BRANCH, 2, ", q", "NOT (c.document_search>=q.phrase AND c.document_search<q.phrase||" + CEILING + ") "
+            + "AND NOT EXISTS (SELECT 1 FROM unnest(q.tokens) t WHERE strpos(c.name_search,t)=0)") + ")"
+            + ") m ORDER BY rank,name_search,customer_id LIMIT " + LIMIT;
     public SearchResult search(Search search) {
         return safe(() -> {
-            var rows = jdbc.query(SEARCH, (r, n) -> new Suggestion(r.getObject("customer_id", UUID.class), r.getString("name"),
-                    r.getString("identity_document"), r.getBoolean("active"), Suggestion.Match.values()[r.getInt("rank")]),
-                    search.text(), String.join(" ", search.tokens()), search.status() == Search.Status.ACTIVE);
+            var parameters = new MapSqlParameterSource("text", search.text()).addValue("tokens", String.join(" ", search.tokens()))
+                    .addValue("active", search.status() == Search.Status.ACTIVE);
+            var rows = named.query(SEARCH, parameters, (r, n) -> new Suggestion(r.getObject("customer_id", UUID.class), r.getString("name"),
+                    r.getString("identity_document"), r.getBoolean("active"), Suggestion.Match.values()[r.getInt("rank")]));
             return new SearchResult(rows.stream().limit(SearchResult.LIMIT).toList(), rows.size() > SearchResult.LIMIT);
         });
     }
