@@ -85,6 +85,23 @@ class CustomerReactivationHttpTest extends HttpTestSupport {
         assertThat(request("GET", "/api/v1/customers/" + id, admin(), null, null).statusCode()).isEqualTo(404);   // still inactive
     }
 
+    @Test void forgedIdentityHeadersGrantNothingAndTheAuditedActorIsTheAuthenticatedSubject() throws Exception {
+        String id = inactiveCustomer(unique()), path = "/api/v1/customers/" + id + "/activate";
+        var forged = java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:" + port + path)).header("Authorization", "Bearer " + seller())
+                .header("X-User-Role", "ADMIN").header("X-Roles", "ADMIN").header("X-User-Id", ADMIN_ID).header("X-Actor-Id", ADMIN_ID)
+                .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"role\":\"ADMIN\",\"actorId\":\"" + ADMIN_ID + "\"}")).build();
+        assertThat(client.send(forged, java.net.http.HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(403);
+        assertThat(audits(id)).isZero();
+        String otherAdmin = UUID.randomUUID().toString();
+        var allowed = java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:" + port + path)).header("Authorization", "Bearer " + token(otherAdmin, "ADMIN", List.of()))
+                .header("X-User-Id", ADMIN_ID).header("X-Actor-Id", ADMIN_ID).header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"actorId\":\"" + ADMIN_ID + "\"}")).build();
+        assertThat(client.send(allowed, java.net.http.HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(200);
+        try (var db = db(false); var st = db.prepareStatement("SELECT actor_id::text FROM customers_schema.customer_audit WHERE customer_id=?::uuid")) {
+            st.setString(1, id); try (var rs = st.executeQuery()) { assertThat(rs.next()).isTrue(); assertThat(rs.getString(1)).isEqualTo(otherAdmin); assertThat(rs.next()).isFalse(); }
+        }
+    }
+
     @Test void theOrdinaryUpdateCannotBeUsedToReactivate() throws Exception {
         String doc = unique(), id = id(create(doc)); deactivate(id);
         for (String token : List.of(admin(), seller())) {

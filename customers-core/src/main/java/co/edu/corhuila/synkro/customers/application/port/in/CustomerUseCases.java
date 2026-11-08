@@ -38,12 +38,12 @@ public interface CustomerUseCases {
         public static Search of(String rawText, String rawStatus) {
             String text = trim(rawText);
             int length = text.codePointCount(0, text.length());
-            if (rawText == null || length < MIN || length > MAX) throw new CustomerFailure("VALIDATION_ERROR", "query", "invalid_length");
+            if (rawText == null || length < MIN || length > MAX) throw CustomerFailure.invalid("query", "invalid_length");
             Status status = Status.ACTIVE;
             if (rawStatus != null) {
                 try { status = Status.valueOf(rawStatus); }
-                catch (IllegalArgumentException e) { throw new CustomerFailure("VALIDATION_ERROR", "status", "invalid_value"); }
-                if (!status.name().equals(rawStatus)) throw new CustomerFailure("VALIDATION_ERROR", "status", "invalid_value");
+                catch (IllegalArgumentException e) { throw CustomerFailure.invalid("status", "invalid_value"); }
+                if (!status.name().equals(rawStatus)) throw CustomerFailure.invalid("status", "invalid_value");
             }
             var tokens = new ArrayList<String>();
             for (String token : text.split("[\\s\\p{Z}\\p{Cc}\\p{Cf}]+")) if (!token.isEmpty()) tokens.add(token);

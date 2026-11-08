@@ -24,6 +24,8 @@ public final class CustomerFailure extends RuntimeException {
         return new CustomerFailure("VALIDATION_ERROR", field, "Invalid field value");
     }
     public static CustomerFailure invalid(List<Issue> issues) { return new CustomerFailure(issues); }
+    /** One rejected field with a stable code; answers with the "Invalid request fields" envelope message. */
+    public static CustomerFailure invalid(String field, String code) { return new CustomerFailure(List.of(new Issue(field, code))); }
     public static CustomerFailure missing() {
         return new CustomerFailure("NOT_FOUND", null, "Customer not found");
     }
