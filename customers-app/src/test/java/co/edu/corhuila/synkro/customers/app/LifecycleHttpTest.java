@@ -35,7 +35,7 @@ class LifecycleHttpTest {
     String token(String sub,String role,List<String> permissions)throws Exception{return signed(claims(sub,role,permissions),KEYS,"RS256");}
     String admin()throws Exception{return token(HUMAN,"ADMIN",List.of());}
     String unique(){return UUID.randomUUID().toString().substring(0,25);}
-    String body(String doc)throws Exception{return JSON.writeValueAsString(Map.of("name","Cliente sintético","identityDocument",doc));}
+    String body(String doc)throws Exception{return JSON.writeValueAsString(Map.of("name","Cliente sintético","identityDocument",doc,"email","cliente@example.test","phone","3001234567","address","Calle 1 # 2-3"));}
     HttpResponse<String> request(String method,String path,String token,String body,String key)throws Exception{
         var r=HttpRequest.newBuilder(URI.create("http://localhost:"+port+path)).timeout(java.time.Duration.ofSeconds(20)).header("X-Correlation-Id","test-correlation");
         if(token!=null)r.header("Authorization","Bearer "+token);if(key!=null)r.header("Idempotency-Key",key);if(body!=null)r.header("Content-Type","application/json");
@@ -49,11 +49,11 @@ class LifecycleHttpTest {
 
     @Test void creationReplayReplacementAndSoftDeletion()throws Exception{
         String doc=unique(),key=unique();var first=create(doc,key);assertThat(first.statusCode()).isEqualTo(201);String id=id(first),path="/api/v1/customers/"+id;
-        assertThat(first.headers().firstValue("Location")).hasValue(path);assertThat(json(first).get("active").asBoolean()).isTrue();assertThat(json(first).get("email").isNull()).isTrue();assertThat(json(first).has("registrationDate")).isTrue();assertThat(json(first).has("registeredAt")).isFalse();
+        assertThat(first.headers().firstValue("Location")).hasValue(path);assertThat(json(first).get("active").asBoolean()).isTrue();assertThat(json(first).get("email").asText()).isEqualTo("cliente@example.test");assertThat(json(first).has("registrationDate")).isTrue();assertThat(json(first).has("registeredAt")).isFalse();
         var replay=create(unique(),key);assertThat(replay.statusCode()).isEqualTo(200);assertThat(json(replay)).isEqualTo(json(first));assertThat(count("customer","identity_document",doc)).isEqualTo(1);assertThat(count("idempotency_key","key",key)).isEqualTo(1);
         assertThat(request("GET",path,admin(),null,null).statusCode()).isEqualTo(200);
-        var full=request("PUT",path,admin(),"{\"name\":\"Eva\",\"identityDocument\":\""+doc+"\",\"email\":\"eva@example.test\",\"phone\":\"123\",\"address\":\"Street\"}",null);assertThat(full.statusCode()).isEqualTo(200);assertThat(json(full).get("email").asText()).isEqualTo("eva@example.test");
-        var updated=request("PUT",path,admin(),body(doc),null);assertThat(updated.statusCode()).isEqualTo(200);assertThat(id(updated)).isEqualTo(id);assertThat(json(updated).get("registrationDate")).isEqualTo(json(first).get("registrationDate"));assertThat(json(updated).get("email").isNull()).isTrue();
+        var full=request("PUT",path,admin(),"{\"name\":\"Eva\",\"identityDocument\":\""+doc+"\",\"email\":\"eva@example.test\",\"phone\":\"3001234567\",\"address\":\"Street\"}",null);assertThat(full.statusCode()).isEqualTo(200);assertThat(json(full).get("email").asText()).isEqualTo("eva@example.test");
+        var updated=request("PUT",path,admin(),body(doc),null);assertThat(updated.statusCode()).isEqualTo(200);assertThat(id(updated)).isEqualTo(id);assertThat(json(updated).get("registrationDate")).isEqualTo(json(first).get("registrationDate"));assertThat(json(updated).get("email").asText()).isEqualTo("cliente@example.test");
         var deleted=request("DELETE",path,admin(),null,null);assertThat(deleted.statusCode()).isEqualTo(200);assertThat(json(deleted).get("active").asBoolean()).isFalse();assertThat(json(request("DELETE",path,admin(),null,null))).isEqualTo(json(deleted));
         assertThat(request("GET",path,admin(),null,null).statusCode()).isEqualTo(404);assertThat(request("PUT",path,admin(),body(doc),null).statusCode()).isEqualTo(404);assertThat(count("customer","identity_document",doc)).isEqualTo(1);assertThat(json(create(doc,key)).get("active").asBoolean()).isFalse();
     }
@@ -104,7 +104,7 @@ class LifecycleHttpTest {
         assertThat(r.statusCode()).isEqualTo(401);assertThat(r.headers().firstValue("X-Correlation-Id")).hasValue(json(r).get("traceId").asText());assertThat(UUID.fromString(json(r).get("traceId").asText())).isNotNull();
         assertThat(request("PATCH","/api/v1/customers/"+UUID.randomUUID(),admin(),null,null).statusCode()).isEqualTo(405);
         for(String field:List.of("name","identityDocument","email","phone","address")){
-            var fields=new LinkedHashMap<String,Object>(Map.of("name","Ana","identityDocument",unique()));fields.put(field,"x".repeat(field.equals("name")?151:field.equals("identityDocument")?31:field.equals("phone")?21:256));
+            var fields=new LinkedHashMap<String,Object>(Map.of("name","Ana","identityDocument",unique(),"email","ana@example.test","phone","3001234567","address","Calle 1"));fields.put(field,"x".repeat(field.equals("name")?151:field.equals("identityDocument")?31:field.equals("phone")?21:256));
             assertThat(request("POST","/api/v1/customers",admin(),JSON.writeValueAsString(fields),unique()).statusCode()).as(field).isEqualTo(400);
         }
     }
