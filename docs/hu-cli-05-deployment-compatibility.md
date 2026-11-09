@@ -92,5 +92,6 @@ Procedure:
    the PR ready.
 3. A DB review that changes migration bytes means a new pin and a new full verification, never a hand edit.
 
-Current state: the fixture is pinned to the local, **unpublished** Customers DB commit recorded in `SOURCE.json`. It must be re-pinned
-to the pushed SHA (identical when the same commit is pushed) before the API PR leaves draft.
+Current state: the fixture is pinned to Customers DB `b63315ea0ea86382da511db802da2f13bc0b1def`, published on the DB pull request branch
+`feat/customer-contacts-search-reactivation` (**not merged**). It depends on DB changes that are still open: once the DB PR is merged it
+must be re-pinned to the merge commit on `origin/develop` (step 2) before the API PR leaves draft.
