@@ -110,7 +110,11 @@ is the only way back from inactive: ADMIN only (route and use case), idempotent,
 once in `customer_audit` in the same transaction; PUT still answers 404 for inactive.
 Historical customers with missing contacts stay readable, deactivatable and
 reactivatable and keep their UUID; they must be completed on their next PUT.
-It needs Customers DB migrations V008–V013 (the test fixture pins them).
+It needs Customers DB migrations V008–V014 (additive and compatible with the previous API; the test fixture is pinned to one
+exact DB revision with `node tests/pin-customers-db.mjs`). The database does **not** enforce contacts yet: the CHECK is prepared in
+Customers DB and activated later; this API is the enforcement point until then.
+Compatibility matrix, deployment order and fixture procedure:
+[docs/hu-cli-05-deployment-compatibility.md](docs/hu-cli-05-deployment-compatibility.md) (`node tests/compat-matrix.mjs`).
 
 Errors use the shared English envelope and X-Correlation-Id/traceId. Storage failures
 return a safe 500; health returns 200 or 503 with database ok/down. Logs are structured
