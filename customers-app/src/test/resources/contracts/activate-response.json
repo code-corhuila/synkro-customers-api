@@ -1,0 +1,10 @@
+{
+  "customerId": "6f1d9e0a-3c52-4c0e-9a57-0d6f0c9b7a11",
+  "name": "Ana María Pérez",
+  "identityDocument": "1000000001",
+  "email": "ana.perez@example.test",
+  "phone": "3001234567",
+  "address": "Calle 1 # 2-3",
+  "registrationDate": "2026-11-01T15:04:05Z",
+  "active": true
+}
