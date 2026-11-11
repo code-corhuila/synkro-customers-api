@@ -20,6 +20,7 @@ export async function verifyRuntime({root,dir,prefix,network,db,password,docker}
         // Availability only: explicit 60 s deadline, a referenced timer per attempt, each attempt aborted and closed; `base` is read per attempt (the published port changes on restart).
         const ready=stage=>waitUntilReady({label:`Runtime readiness (${stage})`,deadlineMs:60000,attemptTimeoutMs:3000,intervalMs:500,probe:httpProbe(()=>base+'/health')});
         await ready('initial startup');console.log('Runtime initial startup: PASS');
+        if(process.env.CUSTOMERS_VERIFY_PACT==='1') (await import('./pact-provider.mjs')).verifyPactProvider({root,dir,prefix,network,token,docker});
         const created=await request('/api/v1/customers',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','Idempotency-Key':randomUUID()},body:JSON.stringify({name:'Restart synthetic',identityDocument:randomUUID().slice(0,25),email:'restart@example.test',phone:'3001234567',address:'Synthetic street 1'})});assert.equal(created.status,201);
         docker(['restart','--time','30',name],{quiet:true});
         // Docker reassigns an ephemeral published port on restart; inspect it again.
