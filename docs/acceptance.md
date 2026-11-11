@@ -36,6 +36,21 @@ infrastructure 94.81%, global 96.02%. Architecture and immutable fixture gates p
 The runtime persists across API restart; it does not establish a production DB
 backup/restore test or infrastructure deployment acceptance.
 
+### Verification harness (`tests/verify.mjs`)
+
+Availability waits are bounded: an explicit deadline (60 s for PostgreSQL and for each runtime readiness stage) enforced by a
+*referenced* timer, one short attempt per probe with its own timer and `AbortController` (aborted and closed when the attempt
+ends), retries only for those probes, and a `ReadinessTimeoutError` naming the stage, deadline, attempts and last result when the
+deadline passes. Business requests use one referenced timeout and are never retried. The earlier loop used
+`AbortSignal.timeout`, whose timer is unreferenced. A reviewer reported that on a Windows host with a Docker-published port that is
+not listening yet the process ended with exit code 13 ("unsettled top-level await") before the `finally` cleanup ran, with Node 20
+and 22 and also on the `qa` base. This was not reproduced on the author's machine (Node 25.7: the same request rejects with
+`UND_ERR_SOCKET`); the exact Node/undici/Docker Desktop cause is therefore not established. The harness no longer depends on it:
+it never awaits a request that is protected only by an unreferenced timer.
+Cleanup of the run's own labelled resources now always runs, in success and failure, refuses resources with another owner label,
+and a failure of any phase or of the cleanup keeps a non-zero exit code. Deterministic tests (local servers, no Docker):
+`node --test tests/harness.test.mjs`.
+
 Verified code-SHA CI and actual participant SHAs/effects are recorded in evidence.md.
 The final documentation commit's exact-SHA CI is reported separately in the delivery report.
 Final exact-SHA CI must include check-deployment.mjs before delivery is READY FOR
