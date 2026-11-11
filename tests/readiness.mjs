@@ -2,9 +2,8 @@
 //
 // Why this exists. The runtime phase used to poll `/health` with `fetch(..., {signal: AbortSignal.timeout(20000)})`.
 // `AbortSignal.timeout` timers are unreferenced on purpose, so while a request was pending nothing kept the event loop
-// alive on some hosts (Node 20 and 22 with a Docker Desktop published port that is not listening yet). The process then
-// ended with exit code 13 ("unsettled top-level await") before the `finally` cleanup could run. The rules below make
-// that impossible by construction:
+// alive on the reporting host (Node 20 and 22, also on the QA baseline). The process ended with exit code 13
+// before cleanup. The underlying Node/port-proxy interaction was not isolated; this harness owns its deadlines:
 //   * every wait has an explicit, finite deadline enforced by an ordinary (referenced) timer, so the process cannot exit
 //     before the deadline error is raised;
 //   * every attempt has its own referenced timer and its own AbortController, aborted when the attempt ends, so a
@@ -12,6 +11,9 @@
 //   * only availability probes are retried; anything else (business requests) fails on its first error;
 //   * when the deadline passes a ReadinessTimeoutError names the wait, the deadline, the attempts and the last reason.
 // No timer here is infinite and no error is swallowed: the last probe error is reported, never turned into success.
+
+import http from 'node:http';
+import https from 'node:https';
 
 export class ReadinessTimeoutError extends Error {
     constructor(label, deadlineMs, attempts, lastReason) {
@@ -81,10 +83,31 @@ export async function waitUntilReady({ label, probe, deadlineMs, attemptTimeoutM
 /** Availability probe for an HTTP endpoint: ready only when the status equals `status` (default 200). */
 export function httpProbe(url, { status = 200 } = {}) {
     return async signal => {
-        const response = await fetch(typeof url === 'function' ? url() : url, { signal });
-        await response.body?.cancel();                             // release the connection of this attempt
+        const response = await requestOnce(typeof url === 'function' ? url() : url, { signal });
         return response.status === status;
     };
+}
+
+// A dedicated socket per call prevents a shared fetch pool from opening replacement
+// connections after cancellation. The request and response are closed on every path.
+function requestOnce(url, options) {
+    return new Promise((resolve, reject) => {
+        const target = new URL(url);
+        const transport = target.protocol === 'https:' ? https : http;
+        const { body, ...requestOptions } = options;
+        const request = transport.request(target, { ...requestOptions, agent: false }, response => {
+            const chunks = [];
+            response.on('data', chunk => chunks.push(chunk));
+            response.on('error', reject);
+            response.on('end', () => {
+                resolve({ status: response.statusCode, text: Buffer.concat(chunks).toString('utf8') });
+                response.destroy();
+                request.destroy();
+            });
+        });
+        request.on('error', reject);
+        request.end(body);
+    });
 }
 
 /**
@@ -94,7 +117,7 @@ export async function httpRequest(url, options = {}, { timeoutMs = 20000 } = {})
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(new Error(`request timed out after ${timeoutMs} ms`)), timeoutMs);
     try {
-        const response = await fetch(url, { ...options, signal: controller.signal });
-        return { status: response.status, body: await response.json() };
+        const response = await requestOnce(url, { ...options, signal: controller.signal });
+        return { status: response.status, body: JSON.parse(response.text) };
     } finally { clearTimeout(timer); controller.abort(); }
 }
