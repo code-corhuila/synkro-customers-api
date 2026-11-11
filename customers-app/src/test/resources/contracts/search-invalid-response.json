@@ -1,0 +1,6 @@
+{
+  "error": "VALIDATION_ERROR",
+  "message": "Invalid request fields",
+  "details": [{ "field": "query", "message": "invalid_length" }],
+  "traceId": "4f1c2b7e-8a3d-4e21-9b6f-0c5d7a2e1f90"
+}
