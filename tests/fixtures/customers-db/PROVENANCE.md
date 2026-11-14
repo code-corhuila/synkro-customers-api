@@ -1,6 +1,6 @@
 # Immutable test snapshot
 
-Source: `code-corhuila/synkro-customers-db`, revision `211fc78c251506664ae96abb87fcf4bc5a3c1a1d` (published: contained in origin/qa).
+Source: `code-corhuila/synkro-customers-db`, revision `a5aebc5dfb2408ce3a2550f604d135bceacf4207` (published: contained in origin/main).
 
 Produced by `node tests/pin-customers-db.mjs <revision>` from the git objects of that revision (raw blobs, no line-ending
 conversion); `node tests/pin-customers-db.mjs --check` recomputes it, and `tests/check-quality.mjs` verifies `SHA256.json`
