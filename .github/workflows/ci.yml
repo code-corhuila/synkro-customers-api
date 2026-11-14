@@ -39,7 +39,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verification harness (bounded readiness, own-resource cleanup; no Docker)
+        run: node --test tests/harness.test.mjs
       - name: Real PostgreSQL lifecycle, RS256, runtime and coverage gates
+        env:
+          CUSTOMERS_VERIFY_PACT: '1'
         run: node tests/verify.mjs
       - name: Owning image and internal deployment configuration
         run: node tests/check-deployment.mjs

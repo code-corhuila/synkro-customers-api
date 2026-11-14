@@ -1,0 +1,21 @@
+{
+  "encoding": "UTF-8 with LF",
+  "contracts": [
+    {
+      "repository": "code-corhuila/synkro-sales-portal",
+      "revision": "374a65263912573b08c9fba6f9e6bd8aa8c16c53",
+      "path": "tests/pact/pacts/SalesPortal-CustomersAPI.json",
+      "file": "SalesPortal-CustomersAPI.json",
+      "sha256": "69f6835d8d87e11ae46a8e80ed3ec487f124b58301092247c4120d293742b9b8",
+      "interactions": 4
+    },
+    {
+      "repository": "code-corhuila/synkro-customers-portal",
+      "revision": "efdfd0e71fa0654bbfc44684a217fed1b6df60f2",
+      "path": "tests/pact/pacts/CustomersPortal-CustomersAPI.json",
+      "file": "CustomersPortal-CustomersAPI.json",
+      "sha256": "e7257a956041b5274a9f8502e735417e5a73c518dfb6e246566e90fd05643f42",
+      "interactions": 4
+    }
+  ]
+}

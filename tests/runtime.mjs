@@ -2,6 +2,7 @@ import {generateKeyPairSync,sign,randomUUID} from 'node:crypto';
 import {writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import assert from 'node:assert/strict';
+import {waitUntilReady,httpProbe,httpRequest} from './readiness.mjs';
 
 export async function verifyRuntime({root,dir,prefix,network,db,password,docker}){
     const name=`${prefix}-runtime`;
@@ -14,10 +15,13 @@ export async function verifyRuntime({root,dir,prefix,network,db,password,docker}
         docker(['create','--name',name,'--label',`synkro.execution=${prefix}`,'--network',network,'--env-file',env,'--publish','127.0.0.1::8080','--mount',`type=bind,source=${pem},target=/run/public.pem,readonly`,'eclipse-temurin:21-jre-alpine','java','-jar','/app.jar'],{quiet:true});
         docker(['cp',resolve(root,'customers-app/target/customers-app-0.1.0-SNAPSHOT.jar'),`${name}:/app.jar`],{quiet:true});docker(['start',name],{quiet:true});
         const binding=JSON.parse(docker(['inspect',name],{quiet:true}).stdout)[0].NetworkSettings.Ports['8080/tcp'][0];let base=`http://127.0.0.1:${binding.HostPort}`;
-        async function request(path,options={}){const r=await fetch(base+path,{signal:AbortSignal.timeout(20000),...options});return {status:r.status,body:await r.json()};}
-        async function ready(stage){for(let i=0;i<60;i++){try{if((await request('/health')).status===200)return;}catch{}await new Promise(r=>setTimeout(r,1000));}throw Error('Runtime readiness failed: '+stage);}
+        // One business request: referenced timeout, closed connection, never retried (tests/readiness.mjs).
+        const request=(path,options={})=>httpRequest(base+path,options,{timeoutMs:20000});
+        // Availability only: explicit 60 s deadline, a referenced timer per attempt, each attempt aborted and closed; `base` is read per attempt (the published port changes on restart).
+        const ready=stage=>waitUntilReady({label:`Runtime readiness (${stage})`,deadlineMs:60000,attemptTimeoutMs:3000,intervalMs:500,probe:httpProbe(()=>base+'/health')});
         await ready('initial startup');console.log('Runtime initial startup: PASS');
-        const created=await request('/api/v1/customers',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','Idempotency-Key':randomUUID()},body:JSON.stringify({name:'Restart synthetic',identityDocument:randomUUID().slice(0,25)})});assert.equal(created.status,201);
+        if(process.env.CUSTOMERS_VERIFY_PACT==='1') (await import('./pact-provider.mjs')).verifyPactProvider({root,dir,prefix,network,token,docker});
+        const created=await request('/api/v1/customers',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','Idempotency-Key':randomUUID()},body:JSON.stringify({name:'Restart synthetic',identityDocument:randomUUID().slice(0,25),email:'restart@example.test',phone:'3001234567',address:'Synthetic street 1'})});assert.equal(created.status,201);
         docker(['restart','--time','30',name],{quiet:true});
         // Docker reassigns an ephemeral published port on restart; inspect it again.
         const restarted=JSON.parse(docker(['inspect',name],{quiet:true}).stdout)[0].NetworkSettings.Ports['8080/tcp'][0];

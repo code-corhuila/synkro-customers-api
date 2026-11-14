@@ -1,0 +1,12 @@
+{
+  "data": [
+    {
+      "customerId": "6f1d9e0a-3c52-4c0e-9a57-0d6f0c9b7a11",
+      "name": "Ana María Pérez",
+      "identityDocument": "1000000001",
+      "active": true,
+      "match": "DOCUMENT_EXACT"
+    }
+  ],
+  "meta": { "limit": 5, "hasMore": false }
+}

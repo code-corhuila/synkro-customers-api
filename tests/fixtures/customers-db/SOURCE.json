@@ -1,0 +1,17 @@
+{
+  "repository": "code-corhuila/synkro-customers-db",
+  "revision": "a5aebc5dfb2408ce3a2550f604d135bceacf4207",
+  "published": true,
+  "remoteBranches": [
+    "origin/main"
+  ],
+  "paths": [
+    "01_ddl",
+    "02_dml",
+    "03_dcl",
+    "04_tcl",
+    "flyway.toml",
+    "scripts/migrate.sh",
+    "scripts/pending-activation"
+  ]
+}

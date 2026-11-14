@@ -98,6 +98,24 @@ replaces name/document/contact fields, clears omitted optional fields and preser
 customerId/registrationDate. Inactive/missing GET and PUT return 404. DELETE updates
 active=false, returns 200 and leaves an already inactive row unchanged.
 
+HU-CLI-05 (contract *proposal* until the Sales owner agrees it, see
+[docs/hu-cli-05-contacts-search-reactivation.md](docs/hu-cli-05-contacts-search-reactivation.md)):
+email, phone (exactly ten ASCII digits, text) and address are mandatory on create and on
+the replacement PUT (400 with one `details` entry per field; nothing is written).
+`POST /api/v1/customers/search` takes the text in the **body** (never URL or logs),
+returns at most 5 suggestions (`hasMore` signals more), is case/accent-insensitive,
+orders exact document first and answers only ADMIN/SALESPERSON; inactive customers are
+searched only on explicit `INACTIVE` by ADMIN. `POST /api/v1/customers/{id}/activate`
+is the only way back from inactive: ADMIN only (route and use case), idempotent, audited
+once in `customer_audit` in the same transaction; PUT still answers 404 for inactive.
+Historical customers with missing contacts stay readable, deactivatable and
+reactivatable and keep their UUID; they must be completed on their next PUT.
+It needs Customers DB migrations V008–V014 (additive and compatible with the previous API; the test fixture is pinned to one
+exact DB revision with `node tests/pin-customers-db.mjs`). The database does **not** enforce contacts yet: the CHECK is prepared in
+Customers DB and activated later; this API is the enforcement point until then.
+Compatibility matrix, deployment order and fixture procedure:
+[docs/hu-cli-05-deployment-compatibility.md](docs/hu-cli-05-deployment-compatibility.md) (`node tests/compat-matrix.mjs`).
+
 Errors use the shared English envelope and X-Correlation-Id/traceId. Storage failures
 return a safe 500; health returns 200 or 503 with database ok/down. Logs are structured
 JSON without customer bodies, documents, SQL exceptions or credentials.
@@ -137,3 +155,20 @@ Private cross-repository snapshots are not downloaded by ordinary CI.
 [prepared PR/review sequence](docs/pr-proposal.md) describe verification and remaining
 documentary or integration limits. This delivery does not close the HU or promote
 the platform. CODEOWNERS is preserved.
+
+### Consumer-driven QA contracts
+
+Run `CUSTOMERS_VERIFY_PACT=1 node tests/verify.mjs` with Node 22 and Docker. Generated consumer artifacts, their published full commit revisions and UTF-8/LF SHA-256 hashes are recorded in `tests/pact/provenance.json`; verification rejects changed artifacts. Pact JS 17.1.4 is isolated from application dependencies. The owned Node runner installs system CA certificates required by Pact's HTTP verifier. A deliberately incompatible HTTP provider must receive the requests and fail verification before the real API/database verification can pass. State setup affects only the launcher's disposable database. Real verification failures propagate a nonzero exit and the launcher removes only its own labelled resources. No broker publication or hosted-green result is implied. This gate complements OpenAPI conformance and does not replace it.
+
+### Consumer-driven QA contracts
+
+Run `CUSTOMERS_VERIFY_PACT=1 node tests/verify.mjs` with Node 22 and Docker. Generated consumer artifacts,
+their published full commit revisions and UTF-8/LF SHA-256 hashes are recorded in
+`tests/pact/provenance.json`; verification rejects changed artifacts.
+Pact JS 17.1.4 is isolated from application dependencies. The owned Node runner
+installs system CA certificates required by Pact's HTTP verifier. A deliberately
+incompatible HTTP provider must receive the requests and fail verification before
+the real API/database verification can pass. State setup affects only the launcher's
+disposable database. Real verification failures propagate a nonzero exit and the
+launcher removes only its own labelled resources. No broker publication or hosted
+green result is implied. This gate complements OpenAPI conformance.
