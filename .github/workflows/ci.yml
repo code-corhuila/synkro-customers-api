@@ -40,11 +40,13 @@ jobs:
         with:
           node-version: '22'
       - name: Verification harness (bounded readiness, own-resource cleanup; no Docker)
-        run: node --test tests/harness.test.mjs
+        run: node --test tests/harness.test.mjs tests/role-gate.test.mjs
       - name: Real PostgreSQL lifecycle, RS256, runtime and coverage gates
         env:
           CUSTOMERS_VERIFY_PACT: '1'
         run: node tests/verify.mjs
+      - name: Require executed INVENTORY and SERVICE regressions in the same gate
+        run: node tests/check-role-boundaries.mjs
       - name: Owning image and internal deployment configuration
         run: node tests/check-deployment.mjs
       - name: Architecture check — customers-core has no Spring dependency

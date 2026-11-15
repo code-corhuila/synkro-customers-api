@@ -52,7 +52,7 @@ public class SecurityConfiguration {
             .authorizeHttpRequests(c -> c.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll().requestMatchers("/health").permitAll()
                 .requestMatchers("/api/v1/customers","/api/v1/customers/**").access((auth,ctx) -> {
                     if(!(auth.get() instanceof JwtAuthenticationToken token))return new AuthorizationDecision(false);
-                    boolean read="GET".equals(ctx.getRequest().getMethod())&&ctx.getRequest().getRequestURI().matches("/api/v1/customers/[^/]+");
+                    boolean read="GET".equals(ctx.getRequest().getMethod())&&ctx.getRequest().getRequestURI().matches("/api/v1/customers/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}");
                     // Reactivation is ADMIN-only at the route as well as in the use case (defence in depth).
                     boolean activate="POST".equals(ctx.getRequest().getMethod())&&ctx.getRequest().getRequestURI().matches("/api/v1/customers/[^/]+/activate");
                     try { if(activate)caller(token.getToken()).authorizeAdmin();else caller(token.getToken()).authorize(read);return new AuthorizationDecision(true); }
