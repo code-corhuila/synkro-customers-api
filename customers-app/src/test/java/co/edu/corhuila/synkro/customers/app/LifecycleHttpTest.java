@@ -82,6 +82,48 @@ class LifecycleHttpTest {
         for(String key:List.of("short","x".repeat(129)))assertThat(create(unique(),key).statusCode()).isEqualTo(400);assertThat(create(unique(),null).statusCode()).isEqualTo(400);assertThat(request("GET","/api/v1/customers/not-uuid",admin(),null,null).statusCode()).isEqualTo(400);
         for(String method:List.of("GET","PUT","DELETE"))assertThat(request(method,"/api/v1/customers/"+UUID.randomUUID(),admin(),method.equals("PUT")?body(unique()):null,null).statusCode()).isEqualTo(404);
     }
+    String storedCustomer(String id)throws Exception{
+        try(var c=db(false);var s=c.prepareStatement("SELECT to_jsonb(c)::text FROM customers_schema.customer c WHERE customer_id=?::uuid")){
+            s.setString(1,id);try(var row=s.executeQuery()){assertThat(row.next()).isTrue();return row.getString(1);}
+        }
+    }
+    @Test void inventoryCannotListCustomers()throws Exception{
+        String doc=unique();var customer=create(doc,unique());assertThat(customer.statusCode()).isEqualTo(201);
+        String inventory=token(HUMAN,"INVENTORY",List.of("customers:read"));
+        for(String query:List.of("","?identityDocument="+doc)){
+            var denied=request("GET","/api/v1/customers"+query,inventory,null,null);
+            assertThat(denied.statusCode()).isEqualTo(403);assertThat(json(denied).get("error").asText()).isEqualTo("FORBIDDEN");
+            assertThat(denied.body()).doesNotContain(doc,id(customer),"identityDocument","cliente@example.test");
+            assertThat(json(denied).has("data")).isFalse();
+        }
+    }
+    @Test void inventoryCannotReplaceCustomer()throws Exception{
+        String doc=unique();var created=create(doc,unique());assertThat(created.statusCode()).isEqualTo(201);
+        String customerId=id(created),before=storedCustomer(customerId),replacement=unique();
+        var denied=request("PUT","/api/v1/customers/"+customerId,token(HUMAN,"INVENTORY",List.of("customers:read")),body(replacement),null);
+        assertThat(denied.statusCode()).isEqualTo(403);assertThat(denied.body()).doesNotContain(doc,customerId,replacement,"identityDocument");
+        assertThat(storedCustomer(customerId)).isEqualTo(before);assertThat(count("customer","identity_document",replacement)).isZero();
+        assertThat(json(request("GET","/api/v1/customers/"+customerId,admin(),null,null))).isEqualTo(json(created));
+    }
+    @Test void workflowReadPermissionCannotListOrModifyCustomers()throws Exception{
+        String doc=unique(),key=unique();var created=create(doc,key);assertThat(created.statusCode()).isEqualTo(201);
+        String customerId=id(created),path="/api/v1/customers/"+customerId,before=storedCustomer(customerId);
+        String service=token("synkro-workflow","SERVICE",List.of("customers:read"));
+        assertThat(request("GET",path,service,null,null).statusCode()).isEqualTo(200);
+        for(String route:List.of("/api/v1/customers","/api/v1/customers?identityDocument="+doc,"/api/v1/customers/search","/api/v1/customers/not-a-uuid")){
+            var denied=request("GET",route,service,null,null);assertThat(denied.statusCode()).isEqualTo(403);
+            assertThat(denied.body()).doesNotContain(doc,customerId,"identityDocument");
+        }
+        String newDoc=unique(),newKey=unique();
+        assertThat(request("POST","/api/v1/customers",service,body(newDoc),newKey).statusCode()).isEqualTo(403);
+        assertThat(request("POST","/api/v1/customers",service,body(doc),key).statusCode()).isEqualTo(403);
+        assertThat(request("PUT",path,service,body(newDoc),null).statusCode()).isEqualTo(403);
+        assertThat(request("DELETE",path,service,null,null).statusCode()).isEqualTo(403);
+        assertThat(request("POST",path+"/activate",service,null,null).statusCode()).isEqualTo(403);
+        assertThat(request("POST","/api/v1/customers/search",service,"{}",null).statusCode()).isEqualTo(403);
+        assertThat(storedCustomer(customerId)).isEqualTo(before);assertThat(count("customer","identity_document",newDoc)).isZero();
+        assertThat(count("idempotency_key","key",newKey)).isZero();assertThat(count("idempotency_key","key",key)).isEqualTo(1);
+    }
     @Test void signedAuthenticationAndFullRoleServiceMatrix()throws Exception{
         String path="/api/v1/customers/"+id(create(unique(),unique()));assertThat(request("GET",path,null,null,null).statusCode()).isEqualTo(401);
         for(String bad:List.of("not-a-token",signed(claims(HUMAN,"ADMIN",List.of()),KEYS,"none"),signed(claims(HUMAN,"ADMIN",List.of()),KEYS,"HS256"),signed(claims(HUMAN,"ADMIN",List.of()),KEYS,"RS512"),signed(claims(HUMAN,"ADMIN",List.of()),keys(),"RS256")))assertThat(request("GET",path,bad,null,null).statusCode()).isEqualTo(401);
